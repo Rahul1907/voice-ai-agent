@@ -13,7 +13,7 @@ describe('CFG-01: Environment configuration validation', () => {
     INTERNAL_API_URL: 'http://localhost:4000',
     LIVEKIT_URL: 'ws://localhost:7880',
     LIVEKIT_API_KEY: 'devkey',
-    LIVEKIT_API_SECRET: 'secret-with-at-least-32-characters-length',
+    LIVEKIT_API_SECRET: 'a'.repeat(32),
     LIVEKIT_AGENT_NAME: 'voice-agent',
     PROVIDER_MODE: 'mock',
   };
