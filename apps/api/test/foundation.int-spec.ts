@@ -8,6 +8,7 @@ import { AppModule } from '../src/app.module';
 import { AppConfigService } from '../src/config/app-config.service';
 import { setupApp } from '../src/setup-app';
 import { HealthCheckError, PrismaHealthIndicator } from '@nestjs/terminus';
+import { Public } from '../src/common/decorators/public.decorator';
 
 class TestValidationDto {
   @IsString()
@@ -15,6 +16,7 @@ class TestValidationDto {
   name!: string;
 }
 
+@Public()
 @Controller('test-harness')
 class TestHarnessController {
   @Post('validate')

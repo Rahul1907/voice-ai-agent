@@ -4,24 +4,27 @@ This document records exact library versions, architectural trade-offs, plan adj
 
 ## Tool & Library Versions
 
-| Component             | Version                           | Phase   | Notes                                                                         |
-| --------------------- | --------------------------------- | ------- | ----------------------------------------------------------------------------- |
-| Node.js               | `24.19.0`                         | Phase 0 | Meets `@livekit/agents` minimum (`>= 20.0.0`) and recommended `24+`           |
-| pnpm                  | `11.21.0`                         | Phase 0 | Single package manager across monorepo                                        |
-| Docker Compose        | `v5.4.0`                          | Phase 0 | Running via Docker Desktop + WSL 2 on Windows                                 |
-| Turborepo (`turbo`)   | `2.11.11`                         | Phase 1 | Uses v2 `tasks` schema in `turbo.json`                                        |
-| TypeScript            | `5.9.3`                           | Phase 1 | Strict mode across all workspaces                                             |
-| ESLint                | `9.39.5`                          | Phase 1 | Flat config (`eslint.config.mjs`) via `@voice-ai/config`                      |
-| Prettier              | `3.10.1`                          | Phase 1 | Shared preset via `@voice-ai/config/prettier`                                 |
-| tsup                  | `8.5.1`                           | Phase 1 | Builds `@voice-ai/shared` to dual ESM + CJS                                   |
-| Vitest                | `3.2.7`                           | Phase 1 | Unit test runner for `shared`, `agent`, `tts-server`, `mock-providers`, `web` |
-| PostgreSQL + pgvector | `pgvector/pgvector:pg17`          | Phase 2 | Local dev DB (`5434`, volume `pgdata`) & test DB (`5433`, `tmpfs`)            |
-| Redis                 | `redis:7-alpine`                  | Phase 2 | Local dev (`6379`) & test (`6380`) for BullMQ and concurrency slots           |
-| LiveKit Server        | `livekit/livekit-server:v1.13.11` | Phase 2 | Pinned release; `rtc.node_ip: 127.0.0.1` for Docker Desktop on Windows        |
-| NestJS                | `11.0.10`                         | Phase 3 | Core API framework with CommonJS build                                        |
-| Prisma ORM            | `6.19.3`                          | Phase 3 | Database ORM with pgvector Unsupported column support                         |
-| Terminus              | `11.0.0`                          | Phase 3 | Health checks for PostgreSQL and Redis on `/api/health`                       |
-| Pino                  | `nestjs-pino 4.3.1`               | Phase 3 | Structured JSON logging with request IDs on every log line                    |
+| Component             | Version                                    | Phase   | Notes                                                                         |
+| --------------------- | ------------------------------------------ | ------- | ----------------------------------------------------------------------------- |
+| Node.js               | `24.19.0`                                  | Phase 0 | Meets `@livekit/agents` minimum (`>= 20.0.0`) and recommended `24+`           |
+| pnpm                  | `11.21.0`                                  | Phase 0 | Single package manager across monorepo                                        |
+| Docker Compose        | `v5.4.0`                                   | Phase 0 | Running via Docker Desktop + WSL 2 on Windows                                 |
+| Turborepo (`turbo`)   | `2.11.11`                                  | Phase 1 | Uses v2 `tasks` schema in `turbo.json`                                        |
+| TypeScript            | `5.9.3`                                    | Phase 1 | Strict mode across all workspaces                                             |
+| ESLint                | `9.39.5`                                   | Phase 1 | Flat config (`eslint.config.mjs`) via `@voice-ai/config`                      |
+| Prettier              | `3.10.1`                                   | Phase 1 | Shared preset via `@voice-ai/config/prettier`                                 |
+| tsup                  | `8.5.1`                                    | Phase 1 | Builds `@voice-ai/shared` to dual ESM + CJS                                   |
+| Vitest                | `3.2.7`                                    | Phase 1 | Unit test runner for `shared`, `agent`, `tts-server`, `mock-providers`, `web` |
+| PostgreSQL + pgvector | `pgvector/pgvector:pg17`                   | Phase 2 | Local dev DB (`5434`, volume `pgdata`) & test DB (`5433`, `tmpfs`)            |
+| Redis                 | `redis:7-alpine`                           | Phase 2 | Local dev (`6379`) & test (`6380`) for BullMQ and concurrency slots           |
+| LiveKit Server        | `livekit/livekit-server:v1.13.11`          | Phase 2 | Pinned release; `rtc.node_ip: 127.0.0.1` for Docker Desktop on Windows        |
+| NestJS                | `11.0.10`                                  | Phase 3 | Core API framework with CommonJS build                                        |
+| Prisma ORM            | `6.19.3`                                   | Phase 3 | Database ORM with pgvector Unsupported column support                         |
+| Terminus              | `11.0.0`                                   | Phase 3 | Health checks for PostgreSQL and Redis on `/api/health`                       |
+| Pino                  | `nestjs-pino 4.3.1`                        | Phase 3 | Structured JSON logging with request IDs on every log line                    |
+| Passport & JWT        | `@nestjs/jwt 11.0.2`, `passport-jwt 4.0.1` | Phase 4 | Stateless JWT auth via httpOnly cookie with Bearer token fallback             |
+| Argon2                | `argon2 0.44.2`                            | Phase 4 | Password hashing (Argon2id) with constant-time verification                   |
+| Throttler             | `@nestjs/throttler 16.1.1`                 | Phase 4 | In-memory IP rate-limiting (5 req/min on auth, 100 req/min global)            |
 
 ## External Free-Tier Limits
 
@@ -51,6 +54,12 @@ This document records exact library versions, architectural trade-offs, plan adj
    The host machine already had a background PostgreSQL service running on port 5432. Following Section 13 of the plan, Docker dev Postgres was mapped to host port 5434 (`5434:5432`) to avoid port collisions while leaving test Postgres on 5433.
 7. **Unified NestJS bootstrap via `setupApp` (Phase 3):**
    Middleware (`helmet`, `cookie-parser`), prefix (`api`), validation (`ValidationPipe`), CORS (`WEB_ORIGIN` with credentials), and `AllExceptionsFilter` are registered in `src/setup-app.ts` so both `main.ts` and integration tests share identical security and error formatting behavior.
-8. **Upcoming Doc-Alignment Items to Watch:**
-   - **Next.js 16 (Phase 6):** Next.js 16 renamed `middleware.ts` to `proxy.ts`. We will match the installed Next.js version.
-   - **LiveKit Agents Node.js (Phase 10):** Uses `ServerOptions` (renamed from `WorkerOptions`) with `cli.runApp`.
+8. **Argon2id password hashing & email normalization (Phase 4):**
+   Passwords are hashed using `argon2` (default variant Argon2id). Registration enforces 8–72 characters (preventing DoS from oversized Argon2 computations) with at least 1 number and 1 letter. Emails are trimmed and transformed to lowercase at the DTO layer and reinforced in `UsersService` to prevent duplicate-cased accounts (`AUTH-05`).
+9. **HttpOnly cookie JWT authentication & global JwtAuthGuard (Phase 4):**
+   JWTs are transmitted via `HttpOnly; SameSite=Lax; Path=/` cookies (`access_token`) with a fallback extractor for `Authorization: Bearer <token>` to facilitate API testing. `JwtAuthGuard` is registered as a global `APP_GUARD`, requiring all routes to be authenticated unless explicitly marked with `@Public()`. The strategy validates existence of the user in PostgreSQL on every request (`AUTH-17`).
+10. **Brute-force protection via Throttler (Phase 4):**
+    `@nestjs/throttler` protects `/api/auth/login` and `/api/auth/register` with 5 requests/minute per IP, returning `429 Too Many Requests` on subsequent attempts (`AUTH-15`).
+11. **Upcoming Doc-Alignment Items to Watch:**
+    - **Next.js 16 (Phase 6):** Next.js 16 renamed `middleware.ts` to `proxy.ts`. We will match the installed Next.js version.
+    - **LiveKit Agents Node.js (Phase 10):** Uses `ServerOptions` (renamed from `WorkerOptions`) with `cli.runApp`.
