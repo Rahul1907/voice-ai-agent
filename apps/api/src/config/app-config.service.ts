@@ -98,6 +98,21 @@ export class AppConfigService {
     return this.config.MAX_AGENTS_PER_USER;
   }
 
+  get defaultLlmModel(): string {
+    return this.config.NVIDIA_LLM_MODEL;
+  }
+
+  get allowedLlmModels(): string[] {
+    const models = [this.config.NVIDIA_LLM_MODEL];
+    if (
+      this.config.NVIDIA_LLM_FALLBACK_MODEL &&
+      this.config.NVIDIA_LLM_FALLBACK_MODEL.trim() !== ''
+    ) {
+      models.push(this.config.NVIDIA_LLM_FALLBACK_MODEL);
+    }
+    return models;
+  }
+
   get maxDocsPerAgent(): number {
     return this.config.MAX_DOCS_PER_AGENT;
   }
