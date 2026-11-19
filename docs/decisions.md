@@ -4,17 +4,20 @@ This document records exact library versions, architectural trade-offs, plan adj
 
 ## Tool & Library Versions
 
-| Component           | Version   | Phase   | Notes                                                                         |
-| ------------------- | --------- | ------- | ----------------------------------------------------------------------------- |
-| Node.js             | `24.19.0` | Phase 0 | Meets `@livekit/agents` minimum (`>= 20.0.0`) and recommended `24+`           |
-| pnpm                | `11.21.0` | Phase 0 | Single package manager across monorepo                                        |
-| Docker Compose      | `v5.4.0`  | Phase 0 | Running via Docker Desktop + WSL 2 on Windows                                 |
-| Turborepo (`turbo`) | `2.11.11` | Phase 1 | Uses v2 `tasks` schema in `turbo.json`                                        |
-| TypeScript          | `5.9.3`   | Phase 1 | Strict mode across all workspaces                                             |
-| ESLint              | `9.39.5`  | Phase 1 | Flat config (`eslint.config.mjs`) via `@voice-ai/config`                      |
-| Prettier            | `3.10.1`  | Phase 1 | Shared preset via `@voice-ai/config/prettier`                                 |
-| tsup                | `8.5.1`   | Phase 1 | Builds `@voice-ai/shared` to dual ESM + CJS                                   |
-| Vitest              | `3.2.7`   | Phase 1 | Unit test runner for `shared`, `agent`, `tts-server`, `mock-providers`, `web` |
+| Component             | Version                           | Phase   | Notes                                                                         |
+| --------------------- | --------------------------------- | ------- | ----------------------------------------------------------------------------- |
+| Node.js               | `24.19.0`                         | Phase 0 | Meets `@livekit/agents` minimum (`>= 20.0.0`) and recommended `24+`           |
+| pnpm                  | `11.21.0`                         | Phase 0 | Single package manager across monorepo                                        |
+| Docker Compose        | `v5.4.0`                          | Phase 0 | Running via Docker Desktop + WSL 2 on Windows                                 |
+| Turborepo (`turbo`)   | `2.11.11`                         | Phase 1 | Uses v2 `tasks` schema in `turbo.json`                                        |
+| TypeScript            | `5.9.3`                           | Phase 1 | Strict mode across all workspaces                                             |
+| ESLint                | `9.39.5`                          | Phase 1 | Flat config (`eslint.config.mjs`) via `@voice-ai/config`                      |
+| Prettier              | `3.10.1`                          | Phase 1 | Shared preset via `@voice-ai/config/prettier`                                 |
+| tsup                  | `8.5.1`                           | Phase 1 | Builds `@voice-ai/shared` to dual ESM + CJS                                   |
+| Vitest                | `3.2.7`                           | Phase 1 | Unit test runner for `shared`, `agent`, `tts-server`, `mock-providers`, `web` |
+| PostgreSQL + pgvector | `pgvector/pgvector:pg17`          | Phase 2 | Local dev DB (`5432`, volume `pgdata`) & test DB (`5433`, `tmpfs`)            |
+| Redis                 | `redis:7-alpine`                  | Phase 2 | Local dev (`6379`) & test (`6380`) for BullMQ and concurrency slots           |
+| LiveKit Server        | `livekit/livekit-server:v1.13.11` | Phase 2 | Pinned release; `rtc.node_ip: 127.0.0.1` for Docker Desktop on Windows        |
 
 ## External Free-Tier Limits
 
@@ -36,7 +39,9 @@ This document records exact library versions, architectural trade-offs, plan adj
    The workspace and GitHub repository are named `voice-ai-agent` (`https://github.com/Rahul1907/voice-ai-agent.git`), with internal packages scoped under `@voice-ai/*`.
 3. **pnpm 11 strict dependency builds (Phase 1):**
    pnpm 11 enables `strictDepBuilds: true` by default and replaced `onlyBuiltDependencies` with `allowBuilds` in `pnpm-workspace.yaml`. Explicitly allow-listing `esbuild: true` keeps installs secure and deterministic in local dev and CI.
-4. **Upcoming Doc-Alignment Items to Watch:**
+4. **LiveKit keys via `LIVEKIT_KEYS` env var & separate test Compose project (Phase 2):**
+   `infra/livekit.yaml` omits the `keys:` block so secrets are never committed; `infra/docker-compose.yml` passes `LIVEKIT_KEYS` from env with local dev defaults (`devkey`). `infra/docker-compose.test.yml` uses `name: voice-ai-test` so dev and test stacks have isolated Docker networks and zero orphan-container warnings.
+5. **Upcoming Doc-Alignment Items to Watch:**
    - **Prisma 7 + NestJS (Phase 3):** Prisma 7 defaults to ESM-first `prisma-client` with explicit driver adapters (`@prisma/adapter-pg`) and `prisma.config.ts`. We will either configure `moduleFormat = "cjs"` with `@prisma/adapter-pg` or pin Prisma 6 if needed.
    - **Next.js 16 (Phase 6):** Next.js 16 renamed `middleware.ts` to `proxy.ts`. We will match the installed Next.js version.
    - **LiveKit Agents Node.js (Phase 10):** Uses `ServerOptions` (renamed from `WorkerOptions`) with `cli.runApp`.
