@@ -1,0 +1,175 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentLanguage {
+  en
+}
+
+enum CallStatus {
+  CREATED
+  ACTIVE
+  ENDED
+  FAILED
+}
+
+enum CallEndReason {
+  USER_HANGUP
+  AGENT_ENDED
+  IDLE
+  TIMEOUT
+  DISCONNECTED
+  ERROR
+}
+
+enum SummaryStatus {
+  PENDING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+enum TranscriptRole {
+  USER
+  AGENT
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agents Agent[]
+  calls  Call[]
+
+  @@map("users")
+}
+
+model Agent {
+  id                 String        @id @default(uuid()) @db.Uuid
+  userId             String        @db.Uuid
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name               String        @db.VarChar(60)
+  systemPrompt       String        @db.Text
+  greeting           String        @default("Hi! How can I help you today?") @db.VarChar(300)
+  voice              String        @default("af_heart")
+  language           AgentLanguage @default(en)
+  llmModel           String
+  temperature        Float         @default(0.6)
+  maxCallDurationSec Int           @default(600)
+  deletedAt          DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  calls     Call[]
+  documents KnowledgeDocument[]
+
+  @@index([userId, deletedAt])
+  @@map("agents")
+}
+
+model Call {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String         @db.Uuid
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId       String         @db.Uuid
+  agent         Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  roomName      String         @unique
+  status        CallStatus     @default(CREATED)
+  endReason     CallEndReason?
+  errorMessage  String?
+  createdAt     DateTime       @default(now())
+  startedAt     DateTime?
+  endedAt       DateTime?
+  durationSec   Int?
+  summary       String?        @db.Text
+  summaryStatus SummaryStatus  @default(PENDING)
+  avgLatencyMs  Int?
+  p50LatencyMs  Int?
+  p95LatencyMs  Int?
+
+  transcripts TranscriptSegment[]
+  metrics     TurnMetric[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("calls")
+}
+
+model TranscriptSegment {
+  id        String         @id @default(uuid()) @db.Uuid
+  callId    String         @db.Uuid
+  call      Call           @relation(fields: [callId], references: [id], onDelete: Cascade)
+  segmentId String
+  role      TranscriptRole
+  text      String         @db.Text
+  sequence  Int
+  spokenAt  DateTime
+
+  @@unique([callId, segmentId])
+  @@index([callId, sequence])
+  @@map("transcript_segments")
+}
+
+model TurnMetric {
+  id         String   @id @default(uuid()) @db.Uuid
+  callId     String   @db.Uuid
+  call       Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  turnIndex  Int
+  eouDelayMs Int?
+  sttMs      Int?
+  llmTtftMs  Int?
+  ttsTtfbMs  Int?
+  totalMs    Int?
+  createdAt  DateTime @default(now())
+
+  @@index([callId, turnIndex])
+  @@map("turn_metrics")
+}
+
+model KnowledgeDocument {
+  id         String         @id @default(uuid()) @db.Uuid
+  agentId    String         @db.Uuid
+  agent      Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  filename   String         @db.VarChar(100)
+  mimeType   String
+  sizeBytes  Int
+  status     DocumentStatus @default(PENDING)
+  error      String?
+  chunkCount Int            @default(0)
+  createdAt  DateTime       @default(now())
+
+  chunks KnowledgeChunk[]
+
+  @@index([agentId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String                                @id @default(uuid()) @db.Uuid
+  documentId String                                @db.Uuid
+  document   KnowledgeDocument                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  agentId    String                                @db.Uuid
+  content    String                                @db.Text
+  position   Int
+  embedding  Unsupported("vector(1024)")?
+
+  @@index([agentId])
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
