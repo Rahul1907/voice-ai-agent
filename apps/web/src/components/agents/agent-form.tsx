@@ -79,19 +79,39 @@ export function AgentForm({
 
   const selectedVoiceId = watch('voice');
 
-  const handlePreviewVoice = () => {
-    setIsPlayingVoice(true);
-    const _selected = voices.find((v) => v.id === selectedVoiceId);
-    const greetingText = watch('greeting') || 'Hi! How can I help you today?';
-
+  const fallbackSpeechSynthesis = () => {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(greetingText);
+      const utterance = new SpeechSynthesisUtterance(
+        watch('greeting') || 'Hi! How can I help you today?',
+      );
       utterance.onend = () => setIsPlayingVoice(false);
       utterance.onerror = () => setIsPlayingVoice(false);
       window.speechSynthesis.speak(utterance);
     } else {
       setTimeout(() => setIsPlayingVoice(false), 1500);
+    }
+  };
+
+  const handlePreviewVoice = () => {
+    if (!selectedVoiceId || isPlayingVoice) return;
+    setIsPlayingVoice(true);
+
+    try {
+      if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+        const audio = new Audio(`/api/voices/${encodeURIComponent(selectedVoiceId)}/preview`);
+        audio.onended = () => setIsPlayingVoice(false);
+        audio.onerror = () => {
+          fallbackSpeechSynthesis();
+        };
+        audio.play().catch(() => {
+          fallbackSpeechSynthesis();
+        });
+      } else {
+        fallbackSpeechSynthesis();
+      }
+    } catch {
+      fallbackSpeechSynthesis();
     }
   };
 

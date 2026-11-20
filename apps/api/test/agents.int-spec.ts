@@ -94,6 +94,27 @@ describe('Phase 5 Agents & Voices Integration Tests (AGT-01 to AGT-15, VOI-01)',
       expect(res.body[0]).toHaveProperty('gender');
       expect(res.body[0]).toHaveProperty('accent');
     });
+
+    it('returns 200 with audio/wav for voice preview', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/voices/af_heart/preview')
+        .responseType('blob');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('audio/wav');
+      expect(res.headers['x-sample-rate']).toBe('24000');
+      expect(res.body).toBeDefined();
+      const buf = Buffer.from(res.body);
+      expect(buf.subarray(0, 4).toString()).toBe('RIFF');
+      expect(buf.subarray(8, 12).toString()).toBe('WAVE');
+    });
+
+    it('returns 404 when previewing an unknown voice', async () => {
+      const res = await request(app.getHttpServer()).get('/api/voices/unknown_voice/preview');
+
+      expect(res.status).toBe(404);
+      expect(res.body.message.some((m: string) => m.includes('Unknown voice ID'))).toBe(true);
+    });
   });
 
   describe('AGT-01: Create agent with only required fields', () => {
