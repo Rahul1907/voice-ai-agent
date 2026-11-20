@@ -1,0 +1,36 @@
+name: voice-ai-e2e
+
+services:
+  mock-providers:
+    build:
+      context: ..
+      dockerfile: apps/mock-providers/Dockerfile
+    container_name: voice-ai-mock-providers
+    environment:
+      NODE_ENV: test
+      MOCK_PROVIDERS_PORT: 5200
+      EMBED_DIM: 1024
+    ports:
+      - '5200:5200'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5200/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  tts-server:
+    build:
+      context: ..
+      dockerfile: apps/tts-server/Dockerfile
+    container_name: voice-ai-tts-server-mock
+    environment:
+      NODE_ENV: test
+      TTS_MODE: mock
+      TTS_PORT: 5100
+    ports:
+      - '5100:5100'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:5100/health']
+      interval: 3s
+      timeout: 3s
+      retries: 10
